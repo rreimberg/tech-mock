@@ -2,6 +2,10 @@
 from importlib import import_module
 
 
+class TechMockException(Exception):
+    pass
+
+
 class Patch():
 
     def __init__(self, target):
@@ -47,8 +51,31 @@ class Patch():
 
 class TechMock():
 
+    def __init__(self, return_value=None, parent=None):
+        self._children = {}
+        self.call_count = 0
+        self.call_args = tuple()
+
     def __call__(self, *args, **kwargs):
+        self.call_count += 1
+        self.call_args = self.call_args + (args, kwargs)
         return self
+
+    def __getattr__(self, name):
+        child = self._get_child(name)
+        return child
 
     def __repr__(self):
         return '<TechMock id={}>'.format(id(self))
+
+    def _get_child(self, name):
+        child = self._children.get(name)
+        if not child:
+            child = TechMock(parent=self)
+            self._children[name] = child
+
+        return child
+
+    def assert_called_once(self):
+        if self.call_count == 1:
+            raise TechMockException("The {} was called {} times. Expected 1".format(repr(self), self.call_count))
