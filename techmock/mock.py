@@ -1,55 +1,4 @@
 
-from importlib import import_module
-
-
-class TechMockException(Exception):
-    pass
-
-
-class Patch():
-
-    def __init__(self, target):
-        self._parse_target(target)
-
-    def _parse_target(self, target):
-        self._target_name = target
-        module, method = self._target_name.rsplit('.', 1)
-        self.target = import_module(module)
-        self.attribute = method
-
-    def _patch(self):
-        self.mock = TechMock(name=self._target_name)
-        self.original = getattr(self.target, self.attribute)
-        setattr(self.target, self.attribute, self.mock)
-
-    def _unpatch(self):
-        setattr(self.target, self.attribute, self.original)
-
-    def __call__(self, func):
-        return self.decorate_callable(func)
-
-    def __enter__(self):
-        self._patch()
-        return self.mock
-
-    def __exit__(self, *args):
-        self._unpatch()
-
-    def decorate_callable(self, func):
-
-        def patched(*args, **kwargs):
-
-            self._patch()
-            n_args = args + (self.mock, )
-
-            result = func(*n_args, **kwargs)
-
-            self._unpatch()
-            return result
-
-        return patched
-
-
 def _format_call_signature(name, args, kwargs):
     formatted_args = ''
     args_string = ', '.join([repr(arg) for arg in args])
@@ -67,7 +16,7 @@ def _format_call_signature(name, args, kwargs):
 
 class TechMock():
 
-    def __init__(self, name=None, return_value=None, parent=None):
+    def __init__(self, name=None, parent=None):
         self._name = name
         self._children = {}
         self.call_count = 0
@@ -78,7 +27,9 @@ class TechMock():
         self.call_count += 1
         self.call_args = (args, kwargs)
         self.call_args_list.append(self.call_args)
-        return self
+
+        return_value = getattr(self, 'return_value', self)
+        return return_value
 
     def __getattr__(self, name):
         child = self._get_child(name)
@@ -125,9 +76,9 @@ class TechMock():
         self.assert_called_once()
         self.assert_called_with(*args, **kwargs)
 
-    def assert_has_calls(self, calls):
-        'Calls not found.\nExpected: %r\n'
-        'Actual: %r' % (_CallList(calls), self.mock_calls)
+#    def assert_has_calls(self, calls):
+#        'Calls not found.\nExpected: %r\n'
+#        'Actual: %r' % (_CallList(calls), self.mock_calls)
 
     def assert_any_call(self, *args, **kwargs):
         expected = (args, kwargs)
